@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 import psycopg2
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -12,6 +13,10 @@ connection = psycopg2.connect(
 )
 
 cursor = connection.cursor()
+class Student(BaseModel):
+    id: int
+    name: str       
+    course: str
 
 # GET ALL STUDENTS
 @app.get("/students") 
@@ -49,3 +54,14 @@ def get_single_student(id:int): #pydantic model
         }
     except:
         raise HTTPException(status_code=404, detail="Student not found")
+
+#create Student Record
+@app.post('/students')
+def create_student_record(student: Student):
+    try:
+        cursor.execute("INSERT INTO students (id, name, course) VALUES (%s, %s, %s)", (student.id, student.name, student.course))    
+        connection.commit()    
+        raise HTTPException(status_code=201, detail="Student record created successfully")
+    except psycopg2.IntegrityError as e:
+        connection.rollback()  # Rollback the transaction in case of an error
+        raise HTTPException(status_code=400, detail="Student with this ID already exists")
