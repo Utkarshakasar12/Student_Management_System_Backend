@@ -3,7 +3,6 @@ import psycopg2
 from pydantic import BaseModel
 
 app = FastAPI()
-
 connection = psycopg2.connect(
     host="localhost",
     database="postgres",
@@ -14,14 +13,12 @@ connection = psycopg2.connect(
 
 cursor = connection.cursor()
 class Student(BaseModel):
-    id: int
-    name: str       
-    course: str
+    id: int = None
+    name: str = None       
+    course: str = None
 
 # GET ALL STUDENTS
 @app.get("/students") 
-
-
 def get_all_students():
     cursor.execute("SELECT * FROM students") #cusor is a key word to execute the query
     rows = cursor.fetchall()
@@ -37,7 +34,7 @@ def get_all_students():
         })
     return result
 
-@app.get('/students/{id}')
+@app.get('/students/{id}')              #{id}' path parameter
 def get_single_student(id:int): #pydantic model
    
     try:
@@ -65,3 +62,37 @@ def create_student_record(student: Student):
     except psycopg2.IntegrityError as e:
         connection.rollback()  # Rollback the transaction in case of an error
         raise HTTPException(status_code=400, detail="Student with this ID already exists")
+
+@app.put('/students/{id}')
+def update_student_record(id: int, student: Student):  #student is object and Student is class name
+    cursor.execute("UPDATE students SET id=%s, name=%s, course=%s WHERE id=%s", (student.id, student.name, student.course, id))
+    if (cursor.rowcount == 0):
+        raise HTTPException(status_code=404, detail="Student not found")
+    connection.commit()
+    raise HTTPException(status_code=200, detail="Student record updated successfully")
+
+#partial Update of Student Record
+@app.patch('/students/{id}')
+def update_student_partial_record(id: int, student: Student):
+    if (student.id != None):
+        cursor.execute("UPDATE students SET id=%s WHERE id=%s", (student.id, id))
+    if (student.name != None):
+        cursor.execute("UPDATE students SET name=%s WHERE id=%s", (student.name, id))
+    if (student.course != None):
+        cursor.execute("UPDATE students SET course=%s WHERE id=%s", (student.course, id))
+    if (cursor.rowcount == 0):
+
+        raise HTTPException(status_code=404, detail="Student not found")
+    connection.commit()
+    raise HTTPException(status_code=200, detail="Partial Student record updated successfully")
+
+
+#delete Student Record
+@app.delete('/students/{id}')
+def delete_student_record(id: int):
+    cursor.execute("DELETE FROM students WHERE id=%s", (id,))
+    if (cursor.rowcount == 0):
+        raise HTTPException(status_code=404, detail="Student not found")
+    connection.commit()
+    raise HTTPException(status_code=200, detail="Student record deleted successfully") 
+
