@@ -1,14 +1,18 @@
 from fastapi import FastAPI, HTTPException
 import psycopg2
 from pydantic import BaseModel
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # Load environment variables from .env file
 
 app = FastAPI()
 connection = psycopg2.connect(
-    host="localhost",
-    database="postgres",
-    port=5432,
-    password="Utkarsha@06",
-    user="postgres"
+    host=os.getenv("DB_HOST"),
+    database=os.getenv("DB_DATABASE"),
+    port=os.getenv("DB_PORT"),
+    password=os.getenv("DB_PASSWORD"),
+    user=os.getenv("DB_USER")
 )
 
 cursor = connection.cursor()
