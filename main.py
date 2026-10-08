@@ -26,7 +26,6 @@ app.add_middleware(
 
 connection = psycopg2.connect('postgresql://neondb_owner:npg_p9doKOGHy4eu@ep-restless-leaf-b3lflrcm-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require')
 
-cursor = connection.cursor()
 class Student(BaseModel):
     id: int = None
     name: str = None       
@@ -34,7 +33,9 @@ class Student(BaseModel):
 
 # GET ALL STUDENTS
 @app.get("/students") 
+  # Create a cursor for executing queries
 def get_all_students():
+    cursor = connection.cursor()  # Create a cursor for executing queries
     cursor.execute("SELECT * FROM students") #cusor is a key word to execute the query
     rows = cursor.fetchall()
     print(rows)
@@ -47,12 +48,14 @@ def get_all_students():
             'name': row[1],
             'course': row[2]
         })
+    cursor.close()  # Close the cursor after use    
     return result
 
 @app.get('/students/{id}')              #{id}' path parameter
 def get_single_student(id:int): #pydantic model
-   
-    try:
+    cursor = connection.cursor()  # Create a new cursor for this request
+    try: 
+        cursor = connection.cursor()  # Create a new cursor for this request
         cursor.execute("SELECT * FROM students WHERE id=%s", (id,)) # id = %s" for dynamic query which enter user and give valuse in tuple format
         #and , commas are used to make it a tuple as per sytaxt one value is query and another is 
         #but here it is not tuple ,tuple is created because of comma after id 
@@ -65,30 +68,37 @@ def get_single_student(id:int): #pydantic model
             'course': row[2]
         }
     except:
+        cursor.close()  # Close the cursor in case of an exception
         raise HTTPException(status_code=404, detail="Student not found")
 
 #create Student Record
 @app.post('/students')
 def create_student_record(student: Student):
     try:
+        cursor = connection.cursor()  # Create a new cursor for this request
         cursor.execute("INSERT INTO students (id, name, course) VALUES (%s, %s, %s)", (student.id, student.name, student.course))    
         connection.commit()    
         raise HTTPException(status_code=201, detail="Student record created successfully")
     except psycopg2.IntegrityError as e:
         connection.rollback()  # Rollback the transaction in case of an error
+        cursor.close()  # Close the cursor after use
         raise HTTPException(status_code=400, detail="Student with this ID already exists")
+        
 
 @app.put('/students/{id}')
 def update_student_record(id: int, student: Student):  #student is object and Student is class name
+    cursor = connection.cursor()  # Create a new cursor for this request
     cursor.execute("UPDATE students SET id=%s, name=%s, course=%s WHERE id=%s", (student.id, student.name, student.course, id))
     if (cursor.rowcount == 0):
         raise HTTPException(status_code=404, detail="Student not found")
     connection.commit()
+    cursor.close()  # Close the cursor after use
     raise HTTPException(status_code=200, detail="Student record updated successfully")
 
 #partial Update of Student Record
 @app.patch('/students/{id}')
 def update_student_partial_record(id: int, student: Student):
+    cursor = connection.cursor()  # Create a new cursor for this request
     if (student.id != None):
         cursor.execute("UPDATE students SET id=%s WHERE id=%s", (student.id, id))
     if (student.name != None):
@@ -99,15 +109,18 @@ def update_student_partial_record(id: int, student: Student):
 
         raise HTTPException(status_code=404, detail="Student not found")
     connection.commit()
+    cursor.close()  # Close the cursor after use
     raise HTTPException(status_code=200, detail="Partial Student record updated successfully")
 
 
 #delete Student Record
 @app.delete('/students/{id}')
 def delete_student_record(id: int):
+    cursor = connection.cursor()  # Create a new cursor for this request
     cursor.execute("DELETE FROM students WHERE id=%s", (id,))
     if (cursor.rowcount == 0):
         raise HTTPException(status_code=404, detail="Student not found")
     connection.commit()
+    cursor.close()  # Close the cursor after use
     raise HTTPException(status_code=200, detail="Student record deleted successfully") 
 
